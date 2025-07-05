@@ -273,6 +273,18 @@ def sample_msa(key, batch, max_seq):
       batch['extra_' + k] = batch[k][extra_idx]
       batch[k] = batch[k][sel_idx]
 
+  # Capture debug information if enabled
+  if batch.get('_save_debug', False):
+    batch['debug_info'] = {
+        'sampling_logits': logits,
+        'cluster_bias_mask': cluster_bias_mask,
+        'main_msa_indices': sel_idx,
+        'extra_msa_indices': extra_idx,
+        'main_msa_count': len(sel_idx),
+        'extra_msa_count': len(extra_idx),
+        'total_msa_count': len(index_order),
+    }
+
   return batch
 
 
@@ -584,12 +596,19 @@ class EmbeddingsAndEvoformer(hk.Module):
               target_feat)
 
       safe_key, sample_key, mask_key = safe_key.split(3)
+      # Enable debug info capture if requested
+      if gc.save_debug_info:
+        batch['_save_debug'] = True
       batch = sample_msa(sample_key, batch, c.num_msa)
       batch = make_masked_msa(batch, mask_key, c.masked_msa)
 
       if c.use_cluster_profile:
         (batch['cluster_profile'],
          batch['cluster_deletion_mean']) = nearest_neighbor_clusters(batch)
+        # Add cluster profile to debug info if enabled
+        if gc.save_debug_info and 'debug_info' in batch:
+          batch['debug_info']['cluster_profile'] = batch['cluster_profile']
+          batch['debug_info']['cluster_deletion_mean'] = batch['cluster_deletion_mean']
 
 
       msa_feat = create_msa_feat(batch).astype(dtype)
@@ -762,6 +781,10 @@ class EmbeddingsAndEvoformer(hk.Module):
         'msa_first_row':
             msa_activations[0],
     })
+    
+    # Add debug info to output if enabled
+    if gc.save_debug_info and 'debug_info' in batch:
+      output['debug_info'] = batch['debug_info']
 
     # Convert back to float32 if we're not saving memory.
     if not gc.bfloat16_output:
