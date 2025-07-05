@@ -330,7 +330,7 @@ class AlphaFoldIteration(hk.Module):
         if k != 'debug_info'  # Skip debug_info since it's a dict, not a JAX array
     }
     # Initialize debug_info to maintain consistent pytree structure for scan
-    if gc.save_debug_info:
+    if self.global_config.save_debug_info:
       representations['debug_info'] = None
 
     def ensemble_body(x, unused_y):
