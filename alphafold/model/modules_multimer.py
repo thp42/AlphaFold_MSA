@@ -275,6 +275,7 @@ def sample_msa(key, batch, max_seq):
 
   # Capture debug information if enabled
   if batch.get('_save_debug', False):
+    print("sample_msa: Capturing debug info...")
     batch['debug_info'] = {
         'sampling_logits': logits,
         'cluster_bias_mask': cluster_bias_mask,
@@ -284,6 +285,9 @@ def sample_msa(key, batch, max_seq):
         'extra_msa_count': len(extra_idx),
         'total_msa_count': len(index_order),
     }
+    print(f"sample_msa: debug_info created with keys: {list(batch['debug_info'].keys())}")
+  else:
+    print("sample_msa: _save_debug is False, not capturing debug info")
 
   return batch
 
@@ -352,10 +356,16 @@ class AlphaFoldIteration(hk.Module):
 
     # Capture debug info separately (not part of ensemble averaging)
     if self.global_config.save_debug_info:
+      print("AlphaFoldIteration: save_debug_info is True, capturing debug info...")
       safe_key, debug_subkey = safe_key.split()
       debug_result = embedding_module(batch, is_training, safe_key=debug_subkey)
       if 'debug_info' in debug_result:
+        print(f"AlphaFoldIteration: debug_info found with keys: {list(debug_result['debug_info'].keys())}")
         representations['debug_info'] = debug_result['debug_info']
+      else:
+        print("AlphaFoldIteration: No debug_info in debug_result!")
+    else:
+      print("AlphaFoldIteration: save_debug_info is False, skipping debug capture")
 
     self.representations = representations
     self.batch = batch
@@ -476,6 +486,15 @@ class AlphaFold(hk.Module):
 
     ret = apply_network(prev=prev, safe_key=safe_key)
     ret["prev"] = get_prev(ret)
+    
+    # Debug: Check if debug_info is in the result
+    if self.global_config.save_debug_info:
+      if 'debug_info' in ret:
+        print(f"AlphaFold: debug_info found in ret with keys: {list(ret['debug_info'].keys())}")
+      else:
+        print("AlphaFold: save_debug_info=True but no debug_info in ret!")
+    else:
+      print("AlphaFold: save_debug_info=False")
 
     if not return_representations:
       del ret['representations']
@@ -606,7 +625,10 @@ class EmbeddingsAndEvoformer(hk.Module):
       safe_key, sample_key, mask_key = safe_key.split(3)
       # Enable debug info capture if requested
       if gc.save_debug_info:
+        print("EmbeddingsAndEvoformer: Setting _save_debug=True")
         batch['_save_debug'] = True
+      else:
+        print("EmbeddingsAndEvoformer: save_debug_info=False, not setting _save_debug")
       batch = sample_msa(sample_key, batch, c.num_msa)
       batch = make_masked_msa(batch, mask_key, c.masked_msa)
 
@@ -792,7 +814,12 @@ class EmbeddingsAndEvoformer(hk.Module):
     
     # Add debug info to output if enabled
     if gc.save_debug_info and 'debug_info' in batch:
+      print(f"EmbeddingsAndEvoformer: Adding debug_info to output with keys: {list(batch['debug_info'].keys())}")
       output['debug_info'] = batch['debug_info']
+    elif gc.save_debug_info:
+      print("EmbeddingsAndEvoformer: save_debug_info=True but no debug_info in batch!")
+    else:
+      print("EmbeddingsAndEvoformer: save_debug_info=False, not adding debug_info")
 
     # Convert back to float32 if we're not saving memory.
     if not gc.bfloat16_output:
