@@ -496,6 +496,11 @@ class AlphaFold(hk.Module):
     else:
       print("AlphaFold: save_debug_info=False")
 
+    # Extract debug_info before potentially deleting representations
+    if self.global_config.save_debug_info and 'representations' in ret and 'debug_info' in ret['representations']:
+      ret['debug_info'] = ret['representations']['debug_info']
+      print(f"AlphaFold: Extracted debug_info from representations with keys: {list(ret['debug_info'].keys())}")
+    
     if not return_representations:
       del ret['representations']
 
