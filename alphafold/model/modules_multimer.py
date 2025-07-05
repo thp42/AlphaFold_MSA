@@ -789,6 +789,9 @@ class EmbeddingsAndEvoformer(hk.Module):
     # Convert back to float32 if we're not saving memory.
     if not gc.bfloat16_output:
       for k, v in output.items():
+        # Skip debug_info since it's a dict, not a JAX array
+        if k == 'debug_info':
+          continue
         if v.dtype == jnp.bfloat16:
           output[k] = v.astype(jnp.float32)
 
