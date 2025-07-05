@@ -327,6 +327,7 @@ class AlphaFoldIteration(hk.Module):
         lambda: embedding_module(batch, is_training))
     representations = {
         k: jnp.zeros(v.shape, v.dtype) for (k, v) in repr_shape.items()
+        if k != 'debug_info'  # Skip debug_info since it's a dict, not a JAX array
     }
 
     def ensemble_body(x, unused_y):
@@ -343,6 +344,10 @@ class AlphaFoldIteration(hk.Module):
               1. / num_ensemble).astype(representations[k].dtype)
         else:
           representations[k] = representations_update[k]
+      
+      # Handle debug_info separately since it's not in initial representations
+      if 'debug_info' in representations_update:
+        representations['debug_info'] = representations_update['debug_info']
 
       return (representations, safe_key), None
 
