@@ -329,6 +329,9 @@ class AlphaFoldIteration(hk.Module):
         k: jnp.zeros(v.shape, v.dtype) for (k, v) in repr_shape.items()
         if k != 'debug_info'  # Skip debug_info since it's a dict, not a JAX array
     }
+    # Initialize debug_info to maintain consistent pytree structure for scan
+    if gc.save_debug_info:
+      representations['debug_info'] = None
 
     def ensemble_body(x, unused_y):
       """Add into representations ensemble."""
@@ -339,15 +342,16 @@ class AlphaFoldIteration(hk.Module):
           batch, is_training, safe_key=safe_subkey)
 
       for k in representations:
-        if k not in {'msa', 'true_msa', 'bert_mask'}:
+        if k == 'debug_info':
+          # Handle debug_info separately - just replace with latest
+          if 'debug_info' in representations_update:
+            representations[k] = representations_update[k]
+          # Keep existing value (None or previous debug_info) if not in update
+        elif k not in {'msa', 'true_msa', 'bert_mask'}:
           representations[k] += representations_update[k] * (
               1. / num_ensemble).astype(representations[k].dtype)
         else:
           representations[k] = representations_update[k]
-      
-      # Handle debug_info separately since it's not in initial representations
-      if 'debug_info' in representations_update:
-        representations['debug_info'] = representations_update['debug_info']
 
       return (representations, safe_key), None
 
