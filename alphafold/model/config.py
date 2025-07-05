@@ -622,6 +622,7 @@ CONFIG_MULTIMER = ml_collections.ConfigDict({
             'use_remat': False,
             'zero_init': True,
             'eval_dropout': False,
+            'save_debug_info': False,
         },
         'heads': {
             'distogram': {
